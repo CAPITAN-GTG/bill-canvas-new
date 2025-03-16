@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Pencil, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 
 export interface Connection {
   id: string;
@@ -24,8 +24,10 @@ export interface BaseBoxProps {
   onValueChange: (value: string) => void;
   onNameChange?: (name: string) => void;
   onConnect: (fromId: string, fromSide: 'left' | 'right') => void;
-  onMove?: (direction: 'up' | 'down' | 'left' | 'right') => void;
+  onPositionChange: (newPosition: { x: number; y: number }) => void;
+  onMouseDown: (e: React.MouseEvent) => void;
   isEditing: boolean;
+  isDragging: boolean;
   pendingConnection?: { fromId: string; fromSide: 'left' | 'right' } | null;
   connections: Connection[];
 }
@@ -43,8 +45,9 @@ const BaseBox: React.FC<BaseBoxProps> = ({
   onValueChange,
   onNameChange,
   onConnect,
-  onMove,
+  onMouseDown,
   isEditing,
+  isDragging,
   pendingConnection,
   connections,
 }) => {
@@ -65,13 +68,16 @@ const BaseBox: React.FC<BaseBoxProps> = ({
 
   return (
     <div
-      className="absolute p-4 rounded-lg bg-white shadow-md text-black hover:shadow-lg transition-all w-[240px]"
+      className={`absolute p-4 rounded-lg bg-white shadow-md text-black hover:shadow-lg transition-all w-[240px] cursor-move
+        ${isDragging ? 'ring-2 ring-blue-500 ring-opacity-50 shadow-lg' : ''}`}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
         borderLeft: `4px solid ${color}`,
         transform: 'translate(-50%, -50%)',
+        userSelect: 'none',
       }}
+      onMouseDown={onMouseDown}
     >
       {/* Connection Points */}
       {connectionPoints.map((point) => (
@@ -85,7 +91,10 @@ const BaseBox: React.FC<BaseBoxProps> = ({
             ...(point === 'left' && { left: '-6px', top: '50%', transform: 'translateY(-50%)' }),
             ...(point === 'right' && { right: '-6px', top: '50%', transform: 'translateY(-50%)' }),
           }}
-          onClick={() => onConnect(id, point)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onConnect(id, point);
+          }}
         />
       ))}
       
@@ -100,24 +109,34 @@ const BaseBox: React.FC<BaseBoxProps> = ({
             onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
             className="flex-1 mr-2 px-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
+            onClick={(e) => e.stopPropagation()}
           />
         ) : (
           <div 
             className="flex-1 mr-2 text-sm font-medium truncate cursor-pointer hover:text-blue-600"
-            onClick={() => onNameChange && setIsEditingName(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onNameChange && setIsEditingName(true);
+            }}
           >
             {name}
           </div>
         )}
         <div className="flex items-center gap-1">
           <button
-            onClick={onEdit}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
             className="p-1 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-800"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={onDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
             className="p-1 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-800"
           >
             <X className="w-3.5 h-3.5" />
@@ -142,43 +161,11 @@ const BaseBox: React.FC<BaseBoxProps> = ({
           onChange={(e) => onValueChange(e.target.value)}
           className="w-full p-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
           autoFocus
+          onClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <div className="text-lg font-semibold mb-3">{value}</div>
-      )}
-
-      {/* Move Controls */}
-      {onMove && (
-        <div className="grid grid-cols-3 gap-1 border-t border-gray-100 pt-2">
-          <div />
-          <button
-            onClick={() => onMove('up')}
-            className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-          >
-            <ChevronUp className="w-4 h-4" />
-          </button>
-          <div />
-          <button
-            onClick={() => onMove('left')}
-            className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <div className="w-4 h-4" />
-          <button
-            onClick={() => onMove('right')}
-            className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-          <div />
-          <button
-            onClick={() => onMove('down')}
-            className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-          >
-            <ChevronDown className="w-4 h-4" />
-          </button>
-          <div />
+        <div className="text-lg font-semibold mb-3">
+          {isNaN(parseFloat(value)) ? '$0.00' : `$${parseFloat(value).toFixed(2)}`}
         </div>
       )}
     </div>
